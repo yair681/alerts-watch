@@ -155,16 +155,21 @@ class MainActivity : ComponentActivity() {
             val body = client.newCall(req).execute().body?.string()
                 ?.trimStart('\uFEFF') ?: "[]"
             val arr = JSONArray(body)
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            sdf.timeZone = java.util.TimeZone.getTimeZone("Asia/Jerusalem")
+            val today = sdf.format(Date())
             val result = mutableListOf<AlertItem>()
-            for (i in 0 until minOf(arr.length(), 30)) {
+            for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
                 val date = obj.optString("alertDate", "")
-                val time = if (date.length >= 16) date.substring(11, 16) else date
-                result.add(AlertItem(
-                    time = time,
-                    title = obj.optString("title", "API OK"),
-                    area = obj.optString("data", "")
-                ))
+                if (date.startsWith(today)) {
+                    val time = if (date.length >= 16) date.substring(11, 16) else date
+                    result.add(AlertItem(
+                        time = time,
+                        title = obj.optString("title", ""),
+                        area = obj.optString("data", "")
+                    ))
+                }
             }
             result
         } catch (e: Exception) {
