@@ -3,13 +3,21 @@ const https = require('https');
 
 const PORT = process.env.PORT || 3000;
 
-// Cache to avoid hammering the API
 let currentCache = { data: '{}', time: 0 };
 let historyCache = { data: '[]', time: 0 };
 
-function fetchUrl(hostname, path, headers) {
+function fetchViaProxy(targetUrl) {
   return new Promise((resolve, reject) => {
-    const options = { hostname, path, headers };
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+    const parsed = new URL(proxyUrl);
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
+    };
     https.get(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -21,32 +29,14 @@ function fetchUrl(hostname, path, headers) {
 async function getCurrentAlert() {
   const now = Date.now();
   if (now - currentCache.time < 2000) return currentCache.data;
-
   try {
-    // Try tzevaadom API (not blocked by Akamai)
-    const raw = await fetchUrl('www.tzevaadom.co.il', '/alerts', {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-      'Origin': 'https://www.tzevaadom.co.il',
-    });
-    const clean = raw.trim();
-    // tzevaadom returns array of city names when alert active, empty array when safe
-    if (clean && clean.startsWith('[')) {
-      const areas = JSON.parse(clean);
-      if (areas.length > 0) {
-        const result = JSON.stringify({
-          id: now.toString(),
-          title: 'צבע אדום',
-          data: areas.join(', ')
-        });
-        currentCache = { data: result, time: now };
-        return result;
-      }
-    }
-    currentCache = { data: '{}', time: now };
-    return '{}';
+    const raw = await fetchViaProxy('https://www.oref.org.il/WarningMessages/alert/alerts.json');
+    const clean = raw.replace(/^\uFEFF/, '').trim();
+    const result = (clean && clean.startsWith('{')) ? clean : '{}';
+    currentCache = { data: result, time: now };
+    return result;
   } catch (err) {
-    console.error('getCurrentAlert error:', err.message);
+    console.error('current error:', err.message);
     return currentCache.data;
   }
 }
@@ -54,21 +44,14 @@ async function getCurrentAlert() {
 async function getHistory() {
   const now = Date.now();
   if (now - historyCache.time < 30000) return historyCache.data;
-
   try {
-    const raw = await fetchUrl('www.oref.org.il',
-      '/WarningMessages/alert/History/AlertsHistory.json', {
-      'Referer': 'https://www.oref.org.il/',
-      'X-Requested-With': 'XMLHttpRequest',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-    });
+    const raw = await fetchViaProxy('https://www.oref.org.il/WarningMessages/alert/History/AlertsHistory.json');
     const clean = raw.replace(/^\uFEFF/, '').trim();
     const result = (clean && clean.startsWith('[')) ? clean : '[]';
     historyCache = { data: result, time: now };
     return result;
   } catch (err) {
-    console.error('getHistory error:', err.message);
+    console.error('history error:', err.message);
     return historyCache.data;
   }
 }
