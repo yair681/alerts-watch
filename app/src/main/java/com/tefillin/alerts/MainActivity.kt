@@ -191,14 +191,19 @@ fun AlertApp(
         val hist = onFetchHistory()
         onUpdateStates(null, hist, "", true)
         screen = "main"
+        var histRefreshCounter = 0
         while (true) {
             try {
                 val data = onFetchCurrent()
                 val now = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
                 val id = data?.optString("id", "") ?: ""
+                histRefreshCounter++
                 val newHist = if (id.isNotEmpty() && id != lastAlertId) {
                     lastAlertId = id
                     onVibrate()
+                    onFetchHistory()
+                } else if (histRefreshCounter >= 10) {
+                    histRefreshCounter = 0
                     onFetchHistory()
                 } else historyState
                 onUpdateStates(if (id.isEmpty()) null else data, newHist, now, true)
