@@ -148,7 +148,7 @@ class MainActivity : ComponentActivity() {
             val body = client.newCall(req).execute().body?.string() ?: "[]"
             val arr = JSONArray(body)
             val result = mutableListOf<AlertItem>()
-            for (i in 0 until minOf(arr.length(), 50)) {
+            for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
                 val date = obj.optString("alertDate", "")
                 val time = if (date.length >= 16) date.substring(5, 16) else date
@@ -216,11 +216,9 @@ fun AlertApp(
             history = historyState,
             lastUpdate = lastUpdateState,
             isConnected = isConnectedState,
-            onShowHistory = { screen = "history" },
             onShowSettings = { screen = "settings" },
             onVibrate = onVibrate
         )
-        "history" -> HistoryScreen(history = historyState, onBack = { screen = "main" })
         "settings" -> SettingsScreen(
             initialCity = onGetCity(),
             onSave = { city -> onSaveCity(city); screen = "main" },
@@ -253,7 +251,6 @@ fun MainScreen(
     history: List<AlertItem>,
     lastUpdate: String,
     isConnected: Boolean,
-    onShowHistory: () -> Unit,
     onShowSettings: () -> Unit,
     onVibrate: () -> Unit
 ) {
@@ -264,46 +261,80 @@ fun MainScreen(
         animationSpec = tween(500), label = ""
     )
 
-    Box(modifier = Modifier.fillMaxSize().background(bgColor), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val dotColor = if (isConnected) GREEN else RED
-                Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(dotColor))
-                Text(text = "  " + lastUpdate, color = GRAY, fontSize = 9.sp)
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            if (hasAlert) {
-                val displayAlert = if (testActive) {
-                    val fake = JSONObject()
-                    fake.put("title", "בדיקת מערכת")
-                    fake.put("data", "קריית ים")
-                    fake
-                } else currentAlert!!
-                AlertActiveContent(displayAlert)
-            } else {
-                SafeContent(history.size)
-            }
-
-            Spacer(Modifier.height(6.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SmallBtn(text = "היסטוריה", color = BLUE, onClick = onShowHistory)
-                SmallBtn(text = "הגדרות", color = GRAY, onClick = onShowSettings)
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            SmallBtn(
-                text = if (testActive) "X בטל בדיקה" else "בדיקה",
-                color = if (testActive) RED else Color(0xFFFFE600),
-                onClick = {
-                    testActive = !testActive
-                    if (testActive) onVibrate()
+    Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            item {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val dotColor = if (isConnected) GREEN else RED
+                    Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(dotColor))
+                    Text(text = "  " + lastUpdate, color = GRAY, fontSize = 9.sp)
                 }
-            )
+                Spacer(Modifier.height(6.dp))
+            }
+
+            item {
+                if (hasAlert) {
+                    val displayAlert = if (testActive) {
+                        val fake = JSONObject()
+                        fake.put("title", "בדיקת מערכת")
+                        fake.put("data", "קריית ים")
+                        fake
+                    } else currentAlert!!
+                    AlertActiveContent(displayAlert)
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center) {
+                        Box(
+                            modifier = Modifier.size(16.dp).clip(CircleShape)
+                                .background(Color(0xFF003322)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "V", color = GREEN, fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold)
+                        }
+                        Text(text = "  בטוח", color = GREEN, fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SmallBtn(
+                        text = if (testActive) "X בטל" else "בדיקה",
+                        color = if (testActive) RED else Color(0xFFFFE600),
+                        onClick = { testActive = !testActive; if (testActive) onVibrate() }
+                    )
+                    SmallBtn(text = "הגדרות", color = GRAY, onClick = onShowSettings)
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            if (history.isEmpty()) {
+                item {
+                    Text(text = "אין התרעות", color = GREEN, fontSize = 12.sp,
+                        textAlign = TextAlign.Center)
+                }
+            } else {
+                item {
+                    Text(
+                        text = history.size.toString() + " התרעות אחרונות",
+                        color = GRAY, fontSize = 10.sp, textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+                items(history) { item ->
+                    AlertRow(item)
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
         }
     }
 }
@@ -336,49 +367,6 @@ fun AlertActiveContent(alert: JSONObject) {
         color = Color.White, fontSize = 11.sp, textAlign = TextAlign.Center,
         maxLines = 3, overflow = TextOverflow.Ellipsis
     )
-}
-
-@Composable
-fun SafeContent(count: Int) {
-    Box(
-        modifier = Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF003322)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = "V", color = GREEN, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-    }
-    Spacer(Modifier.height(4.dp))
-    Text(text = "בטוח", color = GREEN, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-    Text(text = count.toString() + " התרעות היום", color = GRAY, fontSize = 10.sp)
-}
-
-@Composable
-fun HistoryScreen(history: List<AlertItem>, onBack: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().background(BG)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = "< חזור", color = BLUE, fontSize = 11.sp,
-                    modifier = Modifier.clickable { onBack() })
-                Text(text = "התרעות היום", color = Color.White, fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold)
-            }
-            if (history.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "אין התרעות היום", color = GREEN, fontSize = 12.sp)
-                }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp)) {
-                    items(history) { item ->
-                        AlertRow(item)
-                        Spacer(Modifier.height(4.dp))
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
