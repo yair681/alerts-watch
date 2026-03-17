@@ -24,6 +24,7 @@ function fetchDirect(path) {
       },
     };
     https.get(options, (res) => {
+      console.log('direct status:', res.statusCode, 'encoding:', res.headers['content-encoding']);
       const encoding = res.headers['content-encoding'];
       let stream = res;
       if (encoding === 'gzip') stream = res.pipe(zlib.createGunzip());
@@ -31,7 +32,7 @@ function fetchDirect(path) {
       else if (encoding === 'br') stream = res.pipe(zlib.createBrotliDecompress());
       let data = '';
       stream.on('data', (chunk) => { data += chunk; });
-      stream.on('end', () => resolve(data));
+      stream.on('end', () => { console.log('direct body preview:', data.substring(0, 120)); resolve(data); });
       stream.on('error', reject);
     }).on('error', reject);
   });
