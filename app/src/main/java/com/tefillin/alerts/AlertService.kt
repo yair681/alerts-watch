@@ -47,13 +47,11 @@ class AlertService : Service() {
     private suspend fun checkAlert() {
         try {
             val req = Request.Builder()
-                .url("https://www.oref.org.il/WarningMessages/alert/alerts.json")
-                .header("Referer", "https://www.oref.org.il/")
-                .header("X-Requested-With", "XMLHttpRequest")
+                .url(com.tefillin.alerts.SERVER_URL + "/current")
                 .build()
             val body = withContext(Dispatchers.IO) {
                 client.newCall(req).execute().body?.string()
-            }?.trimStart('\uFEFF')?.trim() ?: ""
+            }?.trim() ?: ""
 
             if (body.isNotEmpty() && body.startsWith("{")) {
                 val data = JSONObject(body)

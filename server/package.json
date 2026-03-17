@@ -1,0 +1,9 @@
+{
+  "name": "pikud-haoref-proxy",
+  "version": "1.0.0",
+  "description": "Proxy server for Pikud HaOref alerts API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  }
+}

@@ -62,6 +62,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+const val SERVER_URL = "http://10.0.0.2:3000"
+
 val BG = Color(0xFF0A0A1A)
 val CARD = Color(0xFF16162A)
 val RED = Color(0xFFFF2D55)
@@ -134,26 +136,16 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun fetchCurrent(): JSONObject? = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder()
-                .url("https://www.oref.org.il/WarningMessages/alert/alerts.json")
-                .header("Referer", "https://www.oref.org.il/")
-                .header("X-Requested-With", "XMLHttpRequest")
-                .build()
-            val body = client.newCall(req).execute().body?.string()
-                ?.trimStart('\uFEFF')?.trim() ?: ""
+            val req = Request.Builder().url(SERVER_URL + "/current").build()
+            val body = client.newCall(req).execute().body?.string()?.trim() ?: ""
             if (body.isNotEmpty() && body.startsWith("{")) JSONObject(body) else null
         } catch (e: Exception) { null }
     }
 
     private suspend fun fetchHistory(): List<AlertItem> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder()
-                .url("https://www.oref.org.il/WarningMessages/alert/History/AlertsHistory.json")
-                .header("Referer", "https://www.oref.org.il/")
-                .header("X-Requested-With", "XMLHttpRequest")
-                .build()
-            val body = client.newCall(req).execute().body?.string()
-                ?.trimStart('\uFEFF') ?: "[]"
+            val req = Request.Builder().url(SERVER_URL + "/history").build()
+            val body = client.newCall(req).execute().body?.string() ?: "[]"
             val arr = JSONArray(body)
             val result = mutableListOf<AlertItem>()
             for (i in 0 until minOf(arr.length(), 50)) {
