@@ -188,8 +188,8 @@ fun AlertApp(
 
     LaunchedEffect(Unit) {
         delay(2000)
-        val hist = onFetchHistory()
-        onUpdateStates(null, hist, "", true)
+        var currentHistory = onFetchHistory()
+        onUpdateStates(null, currentHistory, "", true)
         screen = "main"
         var histRefreshCounter = 0
         while (true) {
@@ -198,17 +198,17 @@ fun AlertApp(
                 val now = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
                 val id = data?.optString("id", "") ?: ""
                 histRefreshCounter++
-                val newHist = if (id.isNotEmpty() && id != lastAlertId) {
+                if (id.isNotEmpty() && id != lastAlertId) {
                     lastAlertId = id
                     onVibrate()
-                    onFetchHistory()
+                    currentHistory = onFetchHistory()
                 } else if (histRefreshCounter >= 10) {
                     histRefreshCounter = 0
-                    onFetchHistory()
-                } else historyState
-                onUpdateStates(if (id.isEmpty()) null else data, newHist, now, true)
+                    currentHistory = onFetchHistory()
+                }
+                onUpdateStates(if (id.isEmpty()) null else data, currentHistory, now, true)
             } catch (e: Exception) {
-                onUpdateStates(currentAlertState, historyState, lastUpdateState, false)
+                onUpdateStates(null, currentHistory, "", false)
             }
             delay(3000)
         }
