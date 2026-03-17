@@ -91,34 +91,34 @@ async function tryFetch(orefPath, expectedStart) {
     console.log('allorigins error:', e.message);
   }
 
-  // 3. Try codetabs proxy
+  // 3. Try corsproxy.org
   try {
     const raw = await fetchViaProxy(
-      'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl)
+      'https://corsproxy.org/?' + encodeURIComponent(targetUrl)
     );
     const clean = raw.replace(/^\uFEFF/, '').trim();
     if (clean.startsWith(expectedStart) && !clean.includes('"error"')) {
-      console.log('codetabs OK');
+      console.log('corsproxy.org OK');
       return clean;
     }
-    console.log('codetabs returned:', clean.substring(0, 80));
+    console.log('corsproxy.org returned:', clean.substring(0, 80));
   } catch (e) {
-    console.log('codetabs error:', e.message);
+    console.log('corsproxy.org error:', e.message);
   }
 
-  // 4. Try htmldriven proxy
+  // 4. Try thingproxy
   try {
     const raw = await fetchViaProxy(
-      'https://jsonp.afeld.me/?url=' + encodeURIComponent(targetUrl)
+      'https://thingproxy.freeboard.io/fetch/' + targetUrl
     );
     const clean = raw.replace(/^\uFEFF/, '').trim();
     if (clean.startsWith(expectedStart) && !clean.includes('"error"')) {
-      console.log('afeld OK');
+      console.log('thingproxy OK');
       return clean;
     }
-    console.log('afeld returned:', clean.substring(0, 80));
+    console.log('thingproxy returned:', clean.substring(0, 80));
   } catch (e) {
-    console.log('afeld error:', e.message);
+    console.log('thingproxy error:', e.message);
   }
 
   return null;
