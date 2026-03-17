@@ -80,7 +80,7 @@ async function tryFetch(orefPath, expectedStart) {
     const parsed = JSON.parse(raw);
     if (parsed.status && parsed.status.http_code === 200 && parsed.contents) {
       const clean = parsed.contents.replace(/^\uFEFF/, '').trim();
-      if (clean.startsWith(expectedStart)) {
+      if (clean.startsWith(expectedStart) && !clean.includes('"error"')) {
         console.log('allorigins OK');
         return clean;
       }
@@ -90,34 +90,34 @@ async function tryFetch(orefPath, expectedStart) {
     console.log('allorigins error:', e.message);
   }
 
-  // 3. Try corsproxy.org (different service, no server-side restriction)
-  try {
-    const raw = await fetchViaProxy(
-      'https://corsproxy.org/?' + encodeURIComponent(targetUrl)
-    );
-    const clean = raw.replace(/^\uFEFF/, '').trim();
-    if (clean.startsWith(expectedStart)) {
-      console.log('corsproxy.org OK');
-      return clean;
-    }
-    console.log('corsproxy.org returned:', clean.substring(0, 80));
-  } catch (e) {
-    console.log('corsproxy.org error:', e.message);
-  }
-
-  // 4. Try codetabs proxy
+  // 3. Try codetabs proxy
   try {
     const raw = await fetchViaProxy(
       'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl)
     );
     const clean = raw.replace(/^\uFEFF/, '').trim();
-    if (clean.startsWith(expectedStart)) {
+    if (clean.startsWith(expectedStart) && !clean.includes('"error"')) {
       console.log('codetabs OK');
       return clean;
     }
     console.log('codetabs returned:', clean.substring(0, 80));
   } catch (e) {
     console.log('codetabs error:', e.message);
+  }
+
+  // 4. Try htmldriven proxy
+  try {
+    const raw = await fetchViaProxy(
+      'https://jsonp.afeld.me/?url=' + encodeURIComponent(targetUrl)
+    );
+    const clean = raw.replace(/^\uFEFF/, '').trim();
+    if (clean.startsWith(expectedStart) && !clean.includes('"error"')) {
+      console.log('afeld OK');
+      return clean;
+    }
+    console.log('afeld returned:', clean.substring(0, 80));
+  } catch (e) {
+    console.log('afeld error:', e.message);
   }
 
   return null;
