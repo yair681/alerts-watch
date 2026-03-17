@@ -62,7 +62,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-const val SERVER_URL = "http://10.0.0.2:3000"
+const val SERVER_URL = "https://alerts-watch.onrender.com"
 
 val BG = Color(0xFF0A0A1A)
 val CARD = Color(0xFF16162A)

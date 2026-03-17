@@ -1,7 +1,7 @@
 const http = require('http');
 const https = require('https');
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const OREF_HEADERS = {
   'Referer': 'https://www.oref.org.il/',
