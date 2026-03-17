@@ -1,5 +1,6 @@
 const http = require('http');
 const https = require('https');
+const zlib = require('zlib');
 
 const PORT = process.env.PORT || 3000;
 
@@ -17,12 +18,21 @@ function fetchDirect(path) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'he-IL,he;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Origin': 'https://www.oref.org.il',
+        'Connection': 'keep-alive',
       },
     };
     https.get(options, (res) => {
+      const encoding = res.headers['content-encoding'];
+      let stream = res;
+      if (encoding === 'gzip') stream = res.pipe(zlib.createGunzip());
+      else if (encoding === 'deflate') stream = res.pipe(zlib.createInflate());
+      else if (encoding === 'br') stream = res.pipe(zlib.createBrotliDecompress());
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => resolve(data));
+      stream.on('data', (chunk) => { data += chunk; });
+      stream.on('end', () => resolve(data));
+      stream.on('error', reject);
     }).on('error', reject);
   });
 }
@@ -34,8 +44,8 @@ function fetchViaProxy(proxyUrl) {
       hostname: parsed.hostname,
       path: parsed.pathname + parsed.search,
       headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
       },
     };
     https.get(options, (res) => {
@@ -62,34 +72,52 @@ async function tryFetch(orefPath, expectedStart) {
     console.log('direct error:', e.message);
   }
 
-  // 2. Try allorigins
+  // 2. Try allorigins /get (returns JSON wrapper with http_code)
   try {
     const raw = await fetchViaProxy(
-      'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl)
+      'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl)
     );
-    const clean = raw.replace(/^\uFEFF/, '').trim();
-    if (clean.startsWith(expectedStart)) {
-      console.log('allorigins OK');
-      return clean;
+    const parsed = JSON.parse(raw);
+    if (parsed.status && parsed.status.http_code === 200 && parsed.contents) {
+      const clean = parsed.contents.replace(/^\uFEFF/, '').trim();
+      if (clean.startsWith(expectedStart)) {
+        console.log('allorigins OK');
+        return clean;
+      }
     }
-    console.log('allorigins returned:', clean.substring(0, 80));
+    console.log('allorigins returned http_code:', parsed.status && parsed.status.http_code);
   } catch (e) {
     console.log('allorigins error:', e.message);
   }
 
-  // 3. Try corsproxy.io
+  // 3. Try corsproxy.org (different service, no server-side restriction)
   try {
     const raw = await fetchViaProxy(
-      'https://corsproxy.io/?' + encodeURIComponent(targetUrl)
+      'https://corsproxy.org/?' + encodeURIComponent(targetUrl)
     );
     const clean = raw.replace(/^\uFEFF/, '').trim();
     if (clean.startsWith(expectedStart)) {
-      console.log('corsproxy OK');
+      console.log('corsproxy.org OK');
       return clean;
     }
-    console.log('corsproxy returned:', clean.substring(0, 80));
+    console.log('corsproxy.org returned:', clean.substring(0, 80));
   } catch (e) {
-    console.log('corsproxy error:', e.message);
+    console.log('corsproxy.org error:', e.message);
+  }
+
+  // 4. Try codetabs proxy
+  try {
+    const raw = await fetchViaProxy(
+      'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl)
+    );
+    const clean = raw.replace(/^\uFEFF/, '').trim();
+    if (clean.startsWith(expectedStart)) {
+      console.log('codetabs OK');
+      return clean;
+    }
+    console.log('codetabs returned:', clean.substring(0, 80));
+  } catch (e) {
+    console.log('codetabs error:', e.message);
   }
 
   return null;
